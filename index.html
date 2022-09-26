@@ -1,0 +1,209 @@
+<html>
+    <head>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.1/jquery.min.js" integrity="sha512-aVKKRRi/Q/YV+4mjoKBsE4x3H+BkegoM/em46NNlCqNTmUYADjBbeNefNxYV7giUp0VxICtqdrbqU7iVaeZNXA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    </head>
+    <body>
+        <script>
+            const TICKS_PER_SECOND = 20;
+            const TICKS_PER_MINUTES = TICKS_PER_SECOND * 60;
+            const TICKS_PER_MC_DAY = TICKS_PER_MINUTES * 20; // Day and night cycle
+
+            let sun, moon, animationDiv;
+            let startSeconds
+
+            let outsideBorder, insideBorder, goalBorder
+
+            let startTicks
+            let startBorder
+            let endBorder
+            let borderShrinkTime
+
+            $(() => {
+                $("#run-content").hide();
+
+                sun = $("#sun").get()[0]
+                moon = $("#moon").get()[0]
+                animationDiv = $("#run-content").get()[0]
+
+                outsideBorder = $(".outside-border").get()[0]
+                insideBorder = $(".inside-border").get()[0]
+                goalBorder = $(".goal-border").get()[0]
+            });
+
+            getTime = () => {
+                let now = new Date()  
+                return now.getTime() / 1000
+            }
+
+            startClickHandler = () => {
+                startTicks = parseFloat($("#start-ticks").val())
+                startBorder = parseFloat($("#start-border").val())
+                endBorder = parseFloat($("#end-border").val())
+                borderShrinkTime = parseFloat($("#border-shring-time").val())
+
+                $("#start-content").hide();
+                $("#run-content").show();
+
+                // Start Timer
+                startSeconds = getTime()
+                setInterval(onUpdate, 10)
+                onUpdate();
+            }
+
+            formatTime = (mins) => {
+                min = Math.floor(mins)
+                sec = Math.round(60 * (mins % 1))
+
+                return `${min}:${String(sec).padStart(2,'0')}`
+            }
+
+            onUpdate = () => {
+                const IMAGE_SIZE = 100
+
+                let width = animationDiv.offsetWidth
+                let height = animationDiv.offsetHeight
+                let squareRadius = height / 2
+                let orbitRadius = 3 * squareRadius / 4
+
+                let elapsedSeconds = (getTime() - startSeconds)
+                let currentSeconds = elapsedSeconds + (startTicks / TICKS_PER_SECOND)
+                let dayNormalized = (TICKS_PER_SECOND * currentSeconds / TICKS_PER_MC_DAY) % 1.0
+
+                let angle = dayNormalized * Math.PI * 2;
+
+                const HEADER_OFFSET = 80
+
+                let mx = (Math.cos(angle) * orbitRadius) + (width/2) - (IMAGE_SIZE/2)
+                let my = (Math.sin(angle) * orbitRadius) + (height/2) - (IMAGE_SIZE/2) + HEADER_OFFSET
+
+                let sx = (Math.cos(angle + Math.PI) * orbitRadius) + (width/2) - (IMAGE_SIZE/2)
+                let sy = (Math.sin(angle + Math.PI) * orbitRadius) + (height/2) - (IMAGE_SIZE/2) + HEADER_OFFSET
+                
+                moon.style.left = mx
+                moon.style.top = my
+                sun.style.left = sx
+                sun.style.top = sy
+
+                $("#day-info").html(`Currently: ${dayNormalized <= 0.5 ? "Day" : "Night"}`)
+                let minutes = (TICKS_PER_MC_DAY * (0.5 - (dayNormalized % 0.5)) / TICKS_PER_MINUTES)
+                $("#time-info").html(`For ${formatTime(minutes)}`)
+
+                // Update border
+                const BORDER_MAX_SIZE = 200
+                outsideBorder.style.top = (height / 2) - (BORDER_MAX_SIZE)
+
+                let goalBorderSize = (1 - ((startBorder - endBorder) / startBorder)) * BORDER_MAX_SIZE
+                goalBorder.style.width = `${goalBorderSize}px`
+                goalBorder.style.height = `${goalBorderSize}px`
+
+                let borderDiameter = endBorder + (((1 - (elapsedSeconds / (60 * borderShrinkTime)))) * (startBorder - endBorder))
+                borderDiameter = Math.max(borderDiameter, endBorder)
+                let insideBorderSize = (borderDiameter / startBorder)  * BORDER_MAX_SIZE
+                insideBorder.style.width = `${insideBorderSize}px`
+                insideBorder.style.height = `${insideBorderSize}px`
+
+                let percentBorder = 100 * (1 - ((borderDiameter - endBorder) / (startBorder - endBorder)))
+
+                $("#border-block").html(`${percentBorder.toFixed(1)}% ${(borderDiameter / 2).toFixed(0)} blocks`)
+            }
+
+        </script>
+        <div class="page-content">
+            <h1 class="title">Minecraft UHC Timer</h1>
+            <div id="start-content">
+                <form class="input-form">
+                    <span>
+                        <label>Start Ticks</label>
+                        <input id="start-ticks" type="number" min="0" max="24000" value="1000"/>
+                    </span>
+                    <span>
+                        <label>Start Border Diameter</label>
+                        <input id="start-border" type="number" min="0" max="10000" value="2000"/>
+                    </span>
+                    <span>
+                        <label>End Border Diameter</label>
+                        <input id="end-border" type="number" min="0" max="10000" value="200"/>
+                    </span>
+                    <span>
+                        <label>Border Shrink Time Minutes</label>
+                        <input id="border-shring-time" type="number" min="0" max="0" value="120"/>
+                    </span>
+                    <button type="button" class="btn btn-primary" onclick="startClickHandler()">Start</button>
+                </form>
+            </div>
+            <div id="run-content" class="run-div">
+                <image id="moon" class="sun-moon-graphic" src="https://www.freeiconspng.com/thumbs/moon-png/moon-png-no-background-15.png"></image>
+                <image id="sun" class="sun-moon-graphic" src="https://www.freeiconspng.com/thumbs/sun/natural-energy-source-the-sun-transparent-photos-3.png"></image>
+                <h4 id="day-info">Currently: Day</h4>
+                <h5 id="time-info">For </h5>
+ 
+                <div class="outside-border border border-primary">
+                    <div class="inside-border border border-danger">
+                        <div class="goal-border border border-secondary"></div>
+                    </div>
+                </div>
+                <label id="border-block" style="margin-bottom: 2px">100 blocks</label>
+            </div>
+        </div>
+        <style>
+            body {
+                width: 100%;
+                height: 100%;
+                background-color: #c1f0ff;
+            }
+            .page-content {
+                width: 100%;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+            .title {
+                margin: 25px;
+            }
+            .input-form {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+            .run-div {
+                height: 100%;
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+            .sun-moon-graphic {
+                position: fixed;
+                width: 100px;
+                height: 100px;
+                overflow: hidden;
+            }
+            .border {
+                border-style: dashed;
+                border: 5px solid red;
+                margin: 0;
+                padding: 0;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+            }
+            .outside-border {
+                position: relative;
+                width: 200px;
+                height: 200px;
+            }
+            .inside-border {
+                width: 100px;
+                height: 100px;
+            }
+            .goal-border {
+                width: 50px;
+                height: 50px;
+            }
+        </style>
+
+    </body>
+</html>
